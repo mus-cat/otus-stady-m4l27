@@ -1,0 +1,6 @@
+---
+  - name: Restart http
+    ansible.builtin.systemd:
+      name: lighttpd
+      state: restarted
+      enabled: yes

@@ -1,0 +1,19 @@
+---
+  - name: Install tftp-hpa server
+    ansible.builtin.apt:
+      name: tftpd-hpa
+      state: present
+
+  - name: Make work directory
+    ansible.builtin.file:
+      path: /srv/tftp
+      owner: tftp
+      group: tftp
+      state: directory
+
+  - name: Past config file
+    ansible.builtin.copy:
+      dest: /etc/default
+      src: tftpd-hpa
+    notify:
+      - Restart tftp

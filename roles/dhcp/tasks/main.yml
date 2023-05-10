@@ -1,0 +1,20 @@
+---
+  - name: Install dhcp server
+    ansible.builtin.apt:
+      name: isc-dhcp-server
+      state: present
+
+  - name: Past config file
+    ansible.builtin.copy:
+      dest: /etc/dhcp
+      src: dhcpd.conf
+    notify:
+      - Restart dhcp
+
+  - name: Set listen interface
+    ansible.builtin.lineinfile:
+      path: /etc/default/isc-dhcp-server
+      line: 'INTERFACESv4="{{work_int}}"'
+      regexp: 'INTERFACESv4=.*'
+    notify:
+      - Restart dhcp

@@ -1,0 +1,6 @@
+---
+  - name: Install http server
+    ansible.builtin.apt:
+      name: lighttpd
+      state: present
+

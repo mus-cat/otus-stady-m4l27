@@ -1,0 +1,88 @@
+---
+- name: Install PXE Server
+  hosts: all
+  become: yes
+  gather_facts: no
+  roles:
+    - role: roles/tftp
+    - role: roles/http
+    - role: roles/dhcp
+
+  tasks:
+    - name: Install iptabels
+      ansible.builtin.apt:
+        name: iptables
+        state: present
+
+    - name: Set PXEServer as router
+      ansible.posix.sysctl:
+        name: net.ipv4.ip_forward
+        value: 1
+
+    - name: Config PXEServer as server
+      ansible.builtin.iptables:
+        chain: POSTROUTING
+        jump: MASQUERADE
+        out_interface: eth0
+        table: nat
+
+    - name: Save router config
+      ansible.builtin.lineinfile:
+        path: /etc/network/interfaces
+        line: up iptables -A POSTROUTING -t nat -o eth0 -j MASQUERADE
+
+    - name: Copy needed files
+      ansible.builtin.copy:
+        src: "{{item}}"
+        dest: /srv/tftp/
+      loop:
+        - files/grub.bios
+        - files/grub.efi
+        - files/preseed.cfg
+
+    - name: Change lighttpd config
+      ansible.builtin.lineinfile:
+        path: /etc/lighttpd/lighttpd.conf
+        regexp: '^(server\.document-root.*=)'
+        line: '\1 "/srv/tftp"'
+        backrefs: yes
+      notify:
+        - Restart http
+
+    - name: Make GRUB dir
+      ansible.builtin.file:
+        name: /srv/tftp/grub
+        state: directory
+
+    - name: Download grub packages
+      ansible.builtin.shell:
+        cmd: "apt download {{item}}; dpkg -x *.deb ./; rm *.deb"
+        chdir: /srv/tftp/grub
+      loop:
+        - grub-efi-amd64-bin
+        - grub-pc-bin
+
+    - name: Move GRUB data
+      ansible.builtin.shell:
+        cmd: mv usr/lib/grub/* ./
+        chdir: /srv/tftp/grub
+
+    - name: Remove uneeded folder
+      ansible.builtin.file:
+        path: /srv/tftp/grub/srv
+        state: absent
+
+    - name: Move grub config
+      ansible.builtin.copy:
+        src: files/grub.cfg
+        dest: /srv/tftp/grub/
+
+    - name: Move linux boot files
+      ansible.builtin.copy:
+        src: "{{item}}"
+        dest: /srv/tftp/
+      loop:
+        - files/linux
+        - files/initrd.gz
+
+        
